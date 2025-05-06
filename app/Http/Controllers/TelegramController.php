@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Budget;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Services\{BudgetService, TransactionService, StatusService};
@@ -76,7 +78,7 @@ class TelegramController extends Controller
                     break;
             }
 
-//            return response()->json(['data' => $reply]);
+            return response()->json(['data' => $reply]);
             Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
                 'chat_id'    => $chatId,
                 'text'       => $reply,
@@ -137,10 +139,16 @@ TXT;
 
     private function listTransactions(User $user): string
     {
-        return $user->transactions()
+        $now = Carbon::now();
+
+        $budget = Budget::where('user_id', $user->id)
+            ->where('year', $now->year)
+            ->where('month', $now->month)
+            ->firstOrFail();
+
+        return $budget->transactions()
             ->whereMonth('tx_date', now()->month)
             ->orderByDesc('tx_date')
-            ->limit(20)
             ->get()
             ->map(fn($t) => "{$t->tx_date} {$t->description} {$t->amount}")
             ->implode("\n") ?: '이번 달 기록이 없습니다.';
