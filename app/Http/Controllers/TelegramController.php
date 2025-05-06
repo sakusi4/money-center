@@ -78,7 +78,7 @@ class TelegramController extends Controller
                     break;
             }
 
-            return response()->json(['data' => $reply]);
+//            return response()->json(['data' => $reply]);
             Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
                 'chat_id' => $chatId,
                 'text' => $reply,
