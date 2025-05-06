@@ -101,18 +101,20 @@ class TelegramController extends Controller
 
     private function formatStatus(array $s): string
     {
+        $fmt = fn ($v) => number_format((float) $v, 2);
         $slackEmoji = $s['slack'] < 0 ? '🔴' : '🟢';
+
         return <<<MSG
 📊 이번 달 지출 현황
 ──────────────────
-전체 사용 금액 : {$s['totalSpent']}
-전체 남은 금액 : {$s['totalRemaining']}
+전체 사용 금액 : {$fmt($s['totalSpent'])}
+전체 남은 금액 : {$fmt($s['totalRemaining'])}
 
-오늘 사용 금액 : {$s['todaySpent']}
-오늘 남은 금액 : {$s['todayRemaining']}
+오늘 사용 금액 : {$fmt($s['todaySpent'])}
+오늘 남은 금액 : {$fmt($s['todayRemaining'])}
 
-누적 여유 금액 : {$s['slack']} {$slackEmoji}
-현재 사용 가능 : {$s['currentAvailable']}
+누적 여유 금액 : {$fmt($s['slack'])} {$slackEmoji}
+현재 사용 가능 : {$fmt($s['currentAvailable'])}
 MSG;
     }
 
