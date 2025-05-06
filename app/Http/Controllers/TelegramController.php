@@ -74,7 +74,7 @@ class TelegramController extends Controller
                     break;
 
                 default:
-                    $reply = "잘 이해하지 못했어요. 사용법: /예산, /지출, /수입, /상태, /내역 ⏰";
+                    $reply = "잘 이해하지 못했어요. 사용법: /예산, /지출, /상태, /내역 ⏰";
                     break;
             }
 
