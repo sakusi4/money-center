@@ -27,11 +27,12 @@ class StatusService
         $baseBudget = $budget?->base_amount ?? 0;
         $totalAvail = $baseBudget + $incomeTotal;
         $remainingTot = $totalAvail - $spentTotal;
-
-        $dailyAllowance = $totalAvail / $daysInMonth;
-
+        
         $budgetStart = $budget->created_at->copy()->startOfDay();
-        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay()) + 1;
+        $daysActive  = $now->endOfMonth()->diffInDays($budgetStart) + 1; // 생성일 포함
+        $dailyAllowance = $daysActive > 0 ? $totalAvail / $daysActive : 0;
+
+        $daysPassedSinceStart = $now->copy()->startOfDay()->diffInDays($budgetStart) + 1;
 
         $shouldHaveSpent = $dailyAllowance * $daysPassedSinceStart;
 
