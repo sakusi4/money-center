@@ -19,9 +19,7 @@ class StatusService
             ->where('month', $now->month)
             ->first();
 
-        $tx = Transaction::where('budget_id', $budget->id)
-            ->where('tx_date', $today)
-            ->get();
+        $tx = Transaction::where('budget_id', $budget->id)->get();
 
         $spentTotal = $tx->where('type', 'expense')->sum('amount');
         $incomeTotal = $tx->where('type', 'income')->sum('amount');
