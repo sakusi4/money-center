@@ -55,15 +55,15 @@ class TelegramController extends Controller
                     }
                     break;
 
-                case 'income':
-                    try {
-                        [$amount] = $args;
-                        $txSvc->addIncome($user->id, $amount);
-                        $reply = "수입 {$amount} 추가 ✅";
-                    } catch (ModelNotFoundException $e) {
-                        $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
-                    }
-                    break;
+//                case 'income':
+//                    try {
+//                        [$amount] = $args;
+//                        $txSvc->addIncome($user->id, $amount);
+//                        $reply = "수입 {$amount} 추가 ✅";
+//                    } catch (ModelNotFoundException $e) {
+//                        $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
+//                    }
+//                    break;
 
                 case '/상태':
                     $reply = $this->formatStatus($statusSvc->summary($user->id));
@@ -78,10 +78,10 @@ class TelegramController extends Controller
                     break;
             }
 
-//            return response()->json(['data' => $reply]);
+            return response()->json(['data' => $reply]);
             Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
-                'chat_id'    => $chatId,
-                'text'       => $reply,
+                'chat_id' => $chatId,
+                'text' => $reply,
                 'parse_mode' => 'Markdown',
             ]);
         } catch (\Throwable $e) {
@@ -101,12 +101,14 @@ class TelegramController extends Controller
 
     private function formatStatus(array $s): string
     {
-        $fmt = fn ($v) => number_format((float) $v, 2);
+        $fmt = fn($v) => number_format((float)$v, 2);
         $slackEmoji = $s['slack'] < 0 ? '🔴' : '🟢';
 
         return <<<MSG
 📊 이번 달 지출 현황
 ──────────────────
+일일 평균 사용 가능 금액 (예산/일수) : {$fmt($s['$dailyAllowance'])}
+
 전체 사용 금액 : {$fmt($s['totalSpent'])}
 전체 남은 금액 : {$fmt($s['totalRemaining'])}
 
@@ -130,7 +132,6 @@ MSG;
 ────────────
 `/예산 5000`  — 이번 달 예산 설정 또는 수정
 `/지출 300 점심`  — 오늘 지출 기록 (금액 설명)
-`/수입 1000`  — 오늘 수입 기록
 `/상태`  — 예산·잔액·여유 금액 요약
 `/내역`  — 이번 달 지출 내역 조회
 
@@ -143,17 +144,55 @@ TXT;
     {
         $now = Carbon::now();
 
+        // 이번 달 예산
         $budget = Budget::where('user_id', $user->id)
             ->where('year', $now->year)
             ->where('month', $now->month)
             ->firstOrFail();
 
-        return $budget->transactions()
-            ->whereMonth('tx_date', now()->month)
-            ->orderByDesc('tx_date')
+        $limit = (float)($budget->avg_available_amount ?? 0);
+
+        $txs = $budget->transactions()
+            ->orderBy('tx_date')
             ->get()
-            ->map(fn($t) => "{$t->tx_date} {$t->description} {$t->amount}")
-            ->implode("\n") ?: '이번 달 기록이 없습니다.';
+            ->groupBy('tx_date');
+
+        if ($txs->isEmpty()) {
+            return '이번 달 기록이 없습니다.';
+        }
+
+        $lines = [];
+
+        foreach ($txs as $date => $items) {
+            foreach ($items as $t) {
+                $lines[] = sprintf(
+                    '%s %s %s',
+                    $date,
+                    $t->description,
+                    number_format($t->amount, 2)
+                );
+            }
+
+
+            $dailySpent = $items->where('type', 'expense')->sum('amount');
+            $diff = $dailySpent - $limit;
+
+            if ($diff > 0) {
+                $summary = '🔴 초과 +' . number_format($diff, 2);
+            } elseif ($diff < 0) {
+                $summary = '🟢 절약 ' . number_format(abs($diff), 2);
+            } else {
+                $summary = '⚪️ 정확히 사용';
+            }
+
+            $lines[] = sprintf('└ 하루 합계: %s (%s)', number_format($dailySpent, 2), $summary);
+            $lines[] = '────────────';
+        }
+
+        // 마지막 구분선 제거
+        array_pop($lines);
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -176,9 +215,9 @@ TXT;
         }
 
         // 3) /수입 1000.50
-        if (preg_match('/^\/수입\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
-            return ['income', [$m[1]]];
-        }
+//        if (preg_match('/^\/수입\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
+//            return ['income', [$m[1]]];
+//        }
 
         // 4) /지출 (amount first OR amount last)
         if (preg_match('/^\/지출\s+(.+)/u', $text, $m)) {

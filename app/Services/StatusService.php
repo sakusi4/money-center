@@ -11,7 +11,6 @@ class StatusService
     public function summary(int $userId): array
     {
         $now = Carbon::now();
-        $daysInMonth = $now->daysInMonth;
         $today = $now->toDateString();
 
         $budget = Budget::where('user_id', $userId)
@@ -22,20 +21,14 @@ class StatusService
         $tx = Transaction::where('budget_id', $budget->id)->get();
 
         $spentTotal = $tx->where('type', 'expense')->sum('amount');
-        $incomeTotal = $tx->where('type', 'income')->sum('amount');
 
         $baseBudget = $budget?->base_amount ?? 0;
-        $totalAvail = $baseBudget + $incomeTotal;
-        $remainingTot = $totalAvail - $spentTotal;
+        $remainingTot = $baseBudget - $spentTotal;
 
         $budgetStart = $budget->created_at->copy()->startOfDay();
-
-        $daysActive = (int) $budgetStart->diffInDays($now->copy()->endOfMonth(), true, false) + 1;
-        $dailyAllowance = $daysActive > 0 ? $totalAvail / $daysActive : 0;
-
         $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay());
 
-        $shouldHaveSpent = $dailyAllowance * $daysPassedSinceStart;
+        $shouldHaveSpent = $budget->avg_available_amount * $daysPassedSinceStart;
 
         $slack = $shouldHaveSpent - $spentTotal;
 
@@ -44,9 +37,10 @@ class StatusService
             ->where('type', 'expense')
             ->sum('amount');
 
-        $remainingToday = $dailyAllowance - $spentToday;
+        $remainingToday = $budget->avg_available_amount - $spentToday;
 
         return [
+            '$dailyAllowance' => $budget->avg_available_amount,
             'totalSpent' => $spentTotal,
             'totalRemaining' => $remainingTot,
             'todaySpent' => $spentToday,
