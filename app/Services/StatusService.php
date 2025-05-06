@@ -15,13 +15,12 @@ class StatusService
         $today = $now->toDateString();
 
         $budget = Budget::where('user_id', $userId)
-            ->whereYear('year', $now->year)
+            ->where('year', $now->year)
             ->where('month', $now->month)
             ->first();
 
-        $tx = Transaction::where('user_id', $userId)
-            ->whereMonth('tx_date', $now->month)
-            ->whereYear('tx_date', $now->year)
+        $tx = Transaction::where('budget_id', $budget->id)
+            ->where('tx_date', $today)
             ->get();
 
         $spentTotal = $tx->where('type', 'expense')->sum('amount');
@@ -32,13 +31,16 @@ class StatusService
         $remainingTot = $totalAvail - $spentTotal;
 
         $dailyAllowance = $totalAvail / $daysInMonth;
-        $daysPassed = $now->day;
-        $shouldHaveSpent = $dailyAllowance * $daysPassed;
+
+        $budgetStart = $budget->created_at->copy()->startOfDay();
+        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay()) + 1;
+
+        $shouldHaveSpent = $dailyAllowance * $daysPassedSinceStart;
 
         $slack = $shouldHaveSpent - $spentTotal;
 
-        $spentToday = Transaction::where('user_id', $userId)
-            ->whereDate('tx_date', $today)
+        $spentToday = Transaction::where('budget_id', $budget->id)
+            ->where('tx_date', $today)
             ->where('type', 'expense')
             ->sum('amount');
 

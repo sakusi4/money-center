@@ -8,15 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Transaction extends Model
 {
     protected $fillable = [
-        'user_id',
+        'budget_id',
         'tx_date',
         'type',
         'amount',
         'description',
     ];
 
-    public function user(): BelongsTo
+    public function budget(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Budget::class);
     }
 }
