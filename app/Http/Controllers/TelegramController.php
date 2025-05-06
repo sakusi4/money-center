@@ -146,23 +146,48 @@ TXT;
             ->implode("\n") ?: '이번 달 기록이 없습니다.';
     }
 
+    /**
+     * Parse incoming text message and return [command, args].
+     * args format
+     *   - budget  : [amount]
+     *   - income  : [amount]
+     *   - expense : [amount, description]
+     */
     private function parseCommand(string $text): array
     {
-        $map = [
-            'start' => '/^\/start$/i',
-            'budget' => '/^\/예산\s+(\d+)/u',
-            'expense' => '/^\/지출\s+(\d+)\s+(.+)/u',
-            'income' => '/^\/수입\s+(\d+)/u',
-        ];
-
-        foreach ($map as $cmd => $pattern) {
-            if (preg_match($pattern, $text, $m)) {
-                array_shift($m); // $m[0] = 전체 매치, 버림
-                return [$cmd, $m]; // ex) ['budget', ['5000']]
-            }
+        // 1) /start
+        if (preg_match('/^\/start$/i', $text)) {
+            return ['start', []];
         }
 
-        return [$text, []]; // '/상태', '/내역' 등 literal 커맨드 처리
+        // 2) /예산 5000
+        if (preg_match('/^\/예산\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
+            return ['budget', [$m[1]]];
+        }
+
+        // 3) /수입 1000.50
+        if (preg_match('/^\/수입\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
+            return ['income', [$m[1]]];
+        }
+
+        // 4) /지출 (amount first OR amount last)
+        if (preg_match('/^\/지출\s+(.+)/u', $text, $m)) {
+            $payload = trim($m[1]);
+
+            // case A: amount first -> "/지출 300 점심"
+            if (preg_match('/^([\d]+(?:\.\d+)?)\s+(.+)/u', $payload, $p)) {
+                return ['expense', [$p[1], $p[2]]];
+            }
+
+            // case B: description first -> "/지출 구글원 6.33"
+            if (preg_match('/^(.+)\s+([\d]+(?:\.\d+)?)/u', $payload, $p)) {
+                return ['expense', [$p[2], $p[1]]];
+            }
+
+            return ['error', []];
+        }
+
+        return [$text, []];
     }
 
 }
