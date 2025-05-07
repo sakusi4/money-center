@@ -17,7 +17,7 @@ class StatusService
         $budget = Budget::where('user_id', $user->id)
             ->where('year', $now->year)
             ->where('month', $now->month)
-            ->first();
+            ->firstOrFail();
 
         $tx = Transaction::where('budget_id', $budget->id)->get();
 

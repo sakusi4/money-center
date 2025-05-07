@@ -18,10 +18,11 @@ class TelegramController extends Controller
         $update = $request->all();
         Log::info('telegram.update', $update);
 
-        try {
-            $chatId = data_get($update, 'message.chat.id');
-            $text = trim(data_get($update, 'message.text', ''));
+        $chatId = data_get($update, 'message.chat.id');
+        $text = trim(data_get($update, 'message.text', ''));
+        $reply = "";
 
+        try {
             if (!$chatId || $text === '') {
                 Log::warning('telegram.empty_payload', $update);
                 return response()->noContent();
@@ -46,24 +47,10 @@ class TelegramController extends Controller
                     break;
 
                 case 'expense':
-                    try {
-                        [$amount, $desc] = $args;
-                        $txSvc->addExpense($user, $amount, $desc);
-                        $reply = "지출 {$desc} {$amount} 기록 완료 ✍️";
-                    } catch (ModelNotFoundException $e) {
-                        $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
-                    }
+                    [$amount, $desc] = $args;
+                    $txSvc->addExpense($user, $amount, $desc);
+                    $reply = "지출 {$desc} {$amount} 기록 완료 ✍️";
                     break;
-
-//                case 'income':
-//                    try {
-//                        [$amount] = $args;
-//                        $txSvc->addIncome($user->id, $amount);
-//                        $reply = "수입 {$amount} 추가 ✅";
-//                    } catch (ModelNotFoundException $e) {
-//                        $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
-//                    }
-//                    break;
 
                 case '/상태':
                     $reply = $this->formatStatus($statusSvc->summary($user));
@@ -78,24 +65,20 @@ class TelegramController extends Controller
                     break;
             }
 
-//            return response()->json(['data' => $reply]);
+        } catch (ModelNotFoundException $e) {
+            $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
+        } catch (\Throwable $e) {
+            $reply = "⚠️ 알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+        } finally {
+            if (config('app.env') === 'local') {
+                return response()->json(['data' => $reply]);
+            }
+
             Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
                 'chat_id' => $chatId,
                 'text' => $reply,
                 'parse_mode' => 'Markdown',
             ]);
-        } catch (\Throwable $e) {
-            Log::error('telegram.exception', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            if (isset($chatId)) {
-                Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text' => "⚠️ 알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-                ]);
-            }
         }
     }
 
