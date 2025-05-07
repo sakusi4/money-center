@@ -4,16 +4,17 @@ namespace App\Services;
 
 use App\Models\Budget;
 use App\Models\Transaction;
+use App\Models\User;
 use Carbon\Carbon;
 
 class StatusService
 {
-    public function summary(int $userId): array
+    public function summary(User $user): array
     {
-        $now = Carbon::now();
+        $now = Carbon::now($user->timezone);
         $today = $now->toDateString();
 
-        $budget = Budget::where('user_id', $userId)
+        $budget = Budget::where('user_id', $user->id)
             ->where('year', $now->year)
             ->where('month', $now->month)
             ->first();
@@ -25,7 +26,7 @@ class StatusService
         $baseBudget = $budget?->base_amount ?? 0;
         $remainingTot = $baseBudget - $spentTotal;
 
-        $budgetStart = $budget->created_at->copy()->startOfDay();
+        $budgetStart = $budget->created_at->tz($user->timezone)->startOfDay();
         $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay());
 
         $shouldHaveSpent = $budget->avg_available_amount * $daysPassedSinceStart;

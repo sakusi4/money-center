@@ -41,14 +41,14 @@ class TelegramController extends Controller
 
                 case 'budget':
                     [$amount] = $args;
-                    $budgetSvc->setBase($user->id, $amount);
+                    $budgetSvc->setBase($user, $amount);
                     $reply = "예산이 {$amount}으로 설정됐어요 ✅";
                     break;
 
                 case 'expense':
                     try {
                         [$amount, $desc] = $args;
-                        $txSvc->addExpense($user->id, $amount, $desc);
+                        $txSvc->addExpense($user, $amount, $desc);
                         $reply = "지출 {$desc} {$amount} 기록 완료 ✍️";
                     } catch (ModelNotFoundException $e) {
                         $reply = "❗️ 이번 달 예산이 아직 없습니다.\n/예산 [금액] 으로 먼저 예산을 설정해 주세요.";
@@ -66,7 +66,7 @@ class TelegramController extends Controller
 //                    break;
 
                 case '/상태':
-                    $reply = $this->formatStatus($statusSvc->summary($user->id));
+                    $reply = $this->formatStatus($statusSvc->summary($user));
                     break;
 
                 case '/내역':

@@ -4,22 +4,23 @@
 namespace App\Services;
 
 use App\Models\Budget;
+use App\Models\User;
 use Carbon\Carbon;
 
 class BudgetService
 {
-    public function setBase(int $userId, float $amount): Budget
+    public function setBase(User $user, float $amount): Budget
     {
-        $now = Carbon::now();
+        $now = Carbon::now($user->timezone);
 
         $budget = Budget::where([
-            'user_id' => $userId,
+            'user_id' => $user->id,
             'year' => $now->year,
             'month' => $now->month
         ])->first();
 
         $baseBudget = $amount;
-        $budgetStart = ($budget) ? $budget->created_at->copy()->startOfDay() : $now->copy()->startOfDay();
+        $budgetStart = ($budget) ? $budget->created_at->tz($user->timezone)->startOfDay() : $now->copy()->startOfDay();
 
         $daysActive = (int) $budgetStart->diffInDays($now->copy()->endOfMonth(), true, false) + 1;
         $dailyAllowance = $daysActive > 0 ? $baseBudget / $daysActive : 0;
@@ -31,7 +32,7 @@ class BudgetService
 
         } else {
             $budget = new Budget();
-            $budget->user_id = $userId;
+            $budget->user_id = $user->id;
             $budget->year = $now->year;
             $budget->month = $now->month;
             $budget->base_amount = $amount;

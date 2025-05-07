@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Transaction;
+use App\Models\User;
 use Carbon\Carbon;
 use App\Models\Budget;
 
@@ -11,14 +12,14 @@ class TransactionService
     /**
      * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
      */
-    public function addExpense(int $userId, float $amount, string $desc): Transaction
+    public function addExpense(User $user, float $amount, string $desc): Transaction
     {
-        $now = Carbon::now();
+        $now = Carbon::now($user->timezone);
 
-        $budget = Budget::where('user_id', $userId)
+        $budget = Budget::where('user_id', $user->id)
             ->where('year', $now->year)
             ->where('month', $now->month)
-            ->firstOrFail();  // 예산이 없으면 ModelNotFoundException
+            ->firstOrFail();
 
         return Transaction::create([
             'budget_id' => $budget->id,
