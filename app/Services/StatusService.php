@@ -27,7 +27,7 @@ class StatusService
         $remainingTot = $baseBudget - $spentTotal;
 
         $budgetStart = $budget->created_at->tz($user->timezone)->startOfDay();
-        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay());
+        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay()) + 1;
 
         $shouldHaveSpent = $budget->avg_available_amount * $daysPassedSinceStart;
 
@@ -39,6 +39,7 @@ class StatusService
             ->sum('amount');
 
         $remainingToday = $budget->avg_available_amount - $spentToday;
+        $currentAvailable = $remainingToday + $slack;
 
         return [
             '$dailyAllowance' => $budget->avg_available_amount,
@@ -47,7 +48,7 @@ class StatusService
             'todaySpent' => $spentToday,
             'todayRemaining' => $remainingToday,
             'slack' => $slack,
-            'currentAvailable' => $remainingToday + $slack,
+            'currentAvailable' => ($currentAvailable) > 0 ? $currentAvailable : 0,
         ];
     }
 }
