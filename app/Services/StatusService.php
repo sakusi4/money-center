@@ -51,6 +51,7 @@ class StatusService
         }
 
         return [
+            '$budget' => $budget->base_amount,
             '$dailyAllowance' => $budget->avg_available_amount,
             'totalSpent' => $spentTotal,
             'totalRemaining' => $remainingTot,

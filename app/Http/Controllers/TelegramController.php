@@ -90,6 +90,7 @@ class TelegramController extends Controller
         return <<<MSG
 📊 이번 달 지출 현황
 ──────────────────
+예산 : {$fmt($s['$budget'])}
 일일 평균 사용 가능 금액 (예산/일수) : {$fmt($s['$dailyAllowance'])}
 
 전체 사용 금액 : {$fmt($s['totalSpent'])}
