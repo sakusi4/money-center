@@ -162,9 +162,9 @@ TXT;
             $diff = $dailySpent - $limit;
 
             if ($diff > 0) {
-                $summary = '🔴 초과 +' . number_format($diff, 2);
+                $summary = '🔴 초과 -' . number_format($diff, 2);
             } elseif ($diff < 0) {
-                $summary = '🟢 절약 ' . number_format(abs($diff), 2);
+                $summary = '🟢 절약 +' . number_format(abs($diff), 2);
             } else {
                 $summary = '⚪️ 정확히 사용';
             }
