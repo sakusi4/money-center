@@ -27,11 +27,9 @@ class StatusService
         $remainingTot = $baseBudget - $spentTotal;
 
         $budgetStart = $budget->created_at->tz($user->timezone)->startOfDay();
-        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay()) + 1;
+        $daysPassedSinceStart = $budgetStart->diffInDays($now->copy()->startOfDay());
 
         $shouldHaveSpent = $budget->avg_available_amount * $daysPassedSinceStart;
-
-        $slack = $shouldHaveSpent - $spentTotal;
 
         $spentToday = Transaction::where('budget_id', $budget->id)
             ->where('tx_date', $today)
@@ -39,7 +37,18 @@ class StatusService
             ->sum('amount');
 
         $remainingToday = $budget->avg_available_amount - $spentToday;
+        $slack = $shouldHaveSpent - $spentTotal;
         $currentAvailable = $remainingToday + $slack;
+
+        if ($slack < 0 && $remainingToday > 0) {
+            if (abs($slack) > $remainingToday) {
+                $slack += $remainingToday;
+                $remainingToday = 0;
+            } else {
+                $remainingToday += $slack;
+                $slack = 0;
+            }
+        }
 
         return [
             '$dailyAllowance' => $budget->avg_available_amount,
