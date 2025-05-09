@@ -85,7 +85,6 @@ class TelegramController extends Controller
     private function formatStatus(array $s): string
     {
         $fmt = fn($v) => number_format((float)$v, 2);
-        $slackEmoji = $s['slack'] < 0 ? '🔴' : '🟢';
 
         return <<<MSG
 📊 이번 달 지출 현황
@@ -97,10 +96,7 @@ class TelegramController extends Controller
 전체 남은 금액 : {$fmt($s['totalRemaining'])}
 
 오늘 사용 금액 : {$fmt($s['todaySpent'])}
-오늘 남은 금액 : {$fmt($s['todayRemaining'])}
-
-누적 여유 금액 : {$fmt($s['slack'])} {$slackEmoji}
-현재 사용 가능 : {$fmt($s['currentAvailable'])}
+현재 사용 가능 : {$fmt($s['todayRemaining'])}
 MSG;
     }
 
@@ -145,6 +141,17 @@ TXT;
             return '이번 달 기록이 없습니다.';
         }
 
+        $fmt = fn($v) => number_format($v, 2);
+
+        // 상단 요약
+        $header = <<<MSG
+🧾 이번 달 지출 내역
+──────────────────
+예산 : {$fmt($budget->base_amount)}
+일일 평균 사용 가능 금액 : {$fmt($limit)}
+
+MSG;
+
         $lines = [];
 
         foreach ($txs as $date => $items) {
@@ -156,7 +163,6 @@ TXT;
                     number_format($t->amount, 2)
                 );
             }
-
 
             $dailySpent = $items->where('type', 'expense')->sum('amount');
             $diff = $dailySpent - $limit;
@@ -176,7 +182,7 @@ TXT;
         // 마지막 구분선 제거
         array_pop($lines);
 
-        return implode("\n", $lines);
+        return $header . implode("\n", $lines);
     }
 
     /**
