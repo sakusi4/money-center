@@ -33,6 +33,10 @@ class TelegramController extends Controller
                 ['login_id' => 'tg_' . $chatId, 'password' => bcrypt(str()->random(12))]
             );
 
+            if (!$user->access_token) {
+                $user->generateAccessToken();
+            }
+
             [$command, $args] = $this->parseCommand($text);
 
             switch ($command) {
@@ -70,15 +74,27 @@ class TelegramController extends Controller
         } catch (\Throwable $e) {
             $reply = "⚠️ 알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
         } finally {
+            $reply = [
+                'chat_id' => $chatId,
+                'text' => $reply,
+                'parse_mode' => 'Markdown',
+                'reply_markup' => [
+                    'inline_keyboard' => [
+                        [
+                            [
+                                'text' => '📱 내역 자세히 보기',
+                                'url' => config('app.url') . "/detail/{$user->id}?token=" . $user->access_token
+                            ]
+                        ]
+                    ]
+                ]
+            ];
+
             if (config('app.env') === 'local') {
                 return response()->json(['data' => $reply]);
             }
 
-            Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", [
-                'chat_id' => $chatId,
-                'text' => $reply,
-                'parse_mode' => 'Markdown',
-            ]);
+            Http::post("https://api.telegram.org/bot" . config('telegram.token') . "/sendMessage", $reply);
         }
     }
 
@@ -141,15 +157,11 @@ TXT;
             return '이번 달 기록이 없습니다.';
         }
 
-        $fmt = fn($v) => number_format($v, 2);
-
-        // 상단 요약
         $header = <<<MSG
 🧾 이번 달 지출 내역
 ──────────────────
 
 MSG;
-
         $lines = [];
 
         foreach ($txs as $date => $items) {
@@ -201,11 +213,6 @@ MSG;
         if (preg_match('/^\/예산\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
             return ['budget', [$m[1]]];
         }
-
-        // 3) /수입 1000.50
-//        if (preg_match('/^\/수입\s+([\d]+(?:\.\d+)?)/u', $text, $m)) {
-//            return ['income', [$m[1]]];
-//        }
 
         // 4) /지출 (amount first OR amount last)
         if (preg_match('/^\/지출\s+(.+)/u', $text, $m)) {

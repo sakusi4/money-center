@@ -9,9 +9,11 @@ use App\Models\Budget;
 
 class TransactionService
 {
-    /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
+    private BudgetService $budgetService;
+    public function __construct(BudgetService $budgetService){
+        $this->budgetService = $budgetService;
+    }
+
     public function addExpense(User $user, float $amount, string $desc): Transaction
     {
         $now = Carbon::now($user->timezone);
@@ -30,23 +32,23 @@ class TransactionService
         ]);
     }
 
-    /**
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException
-     */
-    public function addIncome(int $userId, float $amount): Transaction
+    public function addIncome(User $user, float $amount, string $desc): Transaction
     {
         $now = Carbon::now();
 
-        $budget = Budget::where('user_id', $userId)
+        $budget = Budget::where('user_id', $user->id)
             ->where('year', $now->year)
             ->where('month', $now->month)
             ->firstOrFail();
+
+        $this->budgetService->setBase($user, $budget->base_amount + $amount);
 
         return Transaction::create([
             'budget_id' => $budget->id,
             'tx_date' => $now->toDateString(),
             'type' => 'income',
             'amount' => $amount,
+            'description' => $desc,
         ]);
     }
 }
