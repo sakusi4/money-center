@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Transaction;
-use App\Models\User;
 use Illuminate\Http\Request;
 
 class WebViewController
@@ -33,6 +32,7 @@ class WebViewController
             ->firstOrFail();
 
         $transactions = $budget->transactions
+            ->sortByDesc('created_at')
             ->sortByDesc('tx_date')
             ->groupBy(fn($t) => $t->tx_date);
 
